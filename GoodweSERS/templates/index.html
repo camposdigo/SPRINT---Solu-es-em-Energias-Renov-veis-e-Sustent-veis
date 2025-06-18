@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoodWe Smart Solar Home - Painel de Controle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js para o gráfico de consumo -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #f0f2f5; scroll-behavior: smooth; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .card { transition: all 0.3s ease-in-out; }
+        .toggle-checkbox:checked { right: 0; border-color: #4ade80; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #4ade80; }
+        #ar-camera-view { background-color: #000; }
+        #ar-selection-modal { transition: opacity 0.3s ease; }
+        button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    </style>
+</head>
+<body class="text-gray-800">
+    <div class="min-h-screen flex flex-col">
+        <!-- Cabeçalho -->
+        <header class="bg-white shadow-md w-full p-4 flex justify-between items-center sticky top-0 z-50">
+            <div class="flex items-center space-x-3">
+                <i class="ph-house text-3xl text-blue-600"></i>
+                <h1 class="text-2xl font-bold text-gray-700">GoodWe Smart Solar Home</h1>
+            </div>
+            <nav class="hidden md:flex space-x-2">
+                <button onclick="showPage('home')" class="nav-button bg-blue-500 text-white px-4 py-2 rounded-md">Painel</button>
+                <button onclick="showPage('ar')" class="nav-button bg-gray-200 text-gray-700 px-4 py-2 rounded-md">Visualização AR</button>
+                <button onclick="showPage('assistente')" class="nav-button bg-gray-200 text-gray-700 px-4 py-2 rounded-md">Assistente IA</button>
+                <button onclick="showPage('admin')" class="nav-button bg-gray-200 text-gray-700 px-4 py-2 rounded-md">Admin</button>
+            </nav>
+        </header>
+
+        <!-- Conteúdo Principal -->
+        <main class="flex-grow p-4 md:p-8">
+            <!-- Página Home/Index (Painel) -->
+            <div id="home-page" class="page">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="card bg-white p-6 rounded-xl shadow-sm"><div class="flex items-center space-x-4"><i class="ph-sun-dim text-5xl text-yellow-500"></i><div><p class="text-sm text-gray-500">Geração Solar</p><h2 id="solar-generation" class="text-3xl font-bold">-- kW</h2></div></div></div>
+                    <div class="card bg-white p-6 rounded-xl shadow-sm"><div class="flex items-center space-x-4"><i id="battery-icon" class="ph ph-battery-eighty text-5xl text-green-500"></i><div><p class="text-sm text-gray-500">Bateria</p><h2 id="battery-percentage" class="text-3xl font-bold">-- %</h2><p id="battery-state" class="text-sm font-medium capitalize">--</p></div></div></div>
+                    <div class="card bg-white p-6 rounded-xl shadow-sm"><div class="flex items-center space-x-4"><i class="ph-plugs-connected text-5xl text-red-500"></i><div><p class="text-sm text-gray-500">Consumo Total</p><h2 id="home-consumption" class="text-3xl font-bold">-- kW</h2></div></div></div>
+                    <div class="card bg-white p-6 rounded-xl shadow-sm"><div class="flex items-center space-x-4"><i class="ph-broadcast text-5xl text-purple-500"></i><div><p class="text-sm text-gray-500">Rede Elétrica</p><h2 id="grid-power" class="text-3xl font-bold">-- kW</h2><p id="grid-state" class="text-sm font-medium capitalize">--</p></div></div></div>
+                </div>
+            </div>
+
+            <!-- Página de Visualização AR -->
+            <div id="ar-page" class="page hidden">
+                <div class="max-w-4xl mx-auto bg-gray-800 p-4 rounded-2xl shadow-2xl text-center">
+                    <h2 class="text-xl font-bold text-white">Modo de Visualização AR</h2>
+                    <p class="text-sm text-gray-300 mb-4">SIMULAÇÃO: Clique no vídeo para selecionar um eletrônico "identificado".</p>
+                    <div class="relative w-full aspect-video rounded-lg overflow-hidden">
+                        <video id="ar-camera-view" class="w-full h-full object-cover" autoplay playsinline></video>
+                        <div id="ar-selection-modal" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-10 p-4" onclick="closeArSelectionModal()">
+                            <div class="bg-white p-6 rounded-lg shadow-xl" onclick="event.stopPropagation()">
+                                <h3 class="font-bold text-lg mb-4">Qual dispositivo você identificou?</h3>
+                                <div id="ar-device-list" class="space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Página do Assistente IA -->
+            <div id="assistente-page" class="page hidden"><div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-lg"><div class="flex items-center space-x-4"><i class="ph-robot text-6xl text-purple-600"></i><div><h2 class="text-2xl font-bold">Assistente de Eficiência IA</h2><p class="text-gray-600">Receba dicas para otimizar seu consumo.</p></div></div><div class="mt-6 bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-lg min-h-[100px] flex items-center justify-center"><p id="recommendation-text" class="mt-2">Clique no botão para obter uma recomendação.</p></div><div class="text-center mt-6"><button id="fetch-recommendation-btn" onclick="fetchRecommendation()" class="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600">Nova Recomendação</button></div></div></div>
+
+            <!-- Página Admin -->
+            <div id="admin-page" class="page hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                            <h2 class="text-xl font-bold mb-4">Adicionar Novo Eletrônico</h2>
+                            <form id="add-device-form" class="space-y-4">
+                                <div><label for="device-name" class="block text-sm font-medium text-gray-700">Nome do Dispositivo</label><input type="text" id="device-name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required placeholder="Ex: Geladeira"></div>
+                                <div><label for="device-consumption" class="block text-sm font-medium text-gray-700">Consumo (em kW)</label><input type="number" step="0.01" id="device-consumption" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required placeholder="Ex: 0.15"></div>
+                                <button id="add-device-btn" type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Adicionar</button>
+                            </form>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg"><h2 class="text-xl font-bold mb-4">Dispositivos Cadastrados</h2><div id="devices-list" class="space-y-3"><p class="text-gray-500">Nenhum dispositivo adicionado.</p></div></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg"><h2 class="text-xl font-bold mb-4">Consumo por Dispositivo (Ligados)</h2><canvas id="consumption-chart"></canvas></div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="md:hidden bg-white shadow-t w-full p-2 flex justify-around sticky bottom-0 z-40">
+             <button onclick="showPage('home')" class="nav-button-mobile flex flex-col items-center text-blue-500 p-2"><i class="ph-house text-2xl"></i><span class="text-xs">Painel</span></button>
+             <button onclick="showPage('ar')" class="nav-button-mobile flex flex-col items-center text-gray-500 p-2"><i class="ph-camera text-2xl"></i><span class="text-xs">AR</span></button>
+             <button onclick="showPage('assistente')" class="nav-button-mobile flex flex-col items-center text-gray-500 p-2"><i class="ph-robot text-2xl"></i><span class="text-xs">IA</span></button>
+             <button onclick="showPage('admin')" class="nav-button-mobile flex flex-col items-center text-gray-500 p-2"><i class="ph-user-gear text-2xl"></i><span class="text-xs">Admin</span></button>
+        </footer>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-gray-800 text-white py-2 px-5 rounded-lg shadow-xl opacity-0 transition-opacity duration-300 z-50"><p id="toast-message"></p></div>
+
+    <script>
+        // ALTERAÇÃO IMPORTANTE: API_URL agora está vazia para usar caminhos relativos.
+        const API_URL = '';
+        let currentStatusData = {};
+        let consumptionChart;
+        let videoStream;
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.querySelector('p').textContent = message;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`${API_URL}/api/status`);
+                if (!response.ok) {
+                    showToast(`Erro de comunicação (status: ${response.status}).`);
+                    return;
+                }
+                currentStatusData = await response.json();
+                updateUI();
+            } catch (error) {
+                console.error("Falha na comunicação com a API:", error);
+                showToast("API offline. Verifique o terminal do servidor Python.");
+            }
+        }
+
+        function updateUI() {
+            if (!currentStatusData.battery) return;
+            document.getElementById('solar-generation').textContent = `${currentStatusData.solar_generation_kw.toFixed(2)} kW`;
+            document.getElementById('battery-percentage').textContent = `${currentStatusData.battery.percentage.toFixed(1)} %`;
+            document.getElementById('home-consumption').textContent = `${currentStatusData.home_consumption_kw.toFixed(2)} kW`;
+            document.getElementById('grid-power').textContent = `${currentStatusData.grid.power_kw.toFixed(2)} kW`;
+            document.querySelector('#battery-state').textContent = currentStatusData.battery.state.replace('charging', 'Carregando').replace('discharging', 'Descarregando').replace('idle', 'Em espera');
+            document.querySelector('#grid-state').textContent = currentStatusData.grid.state.replace('drawing', 'Puxando da Rede').replace('injecting', 'Injetando na Rede').replace('idle', 'Em espera');
+            updateDevicesList();
+            updateConsumptionChart();
+        }
+
+        function updateDevicesList() {
+            const listEl = document.getElementById('devices-list');
+            listEl.innerHTML = '';
+            const devices = Object.values(currentStatusData.devices || {}).filter(d => d.id !== 'base01');
+            if (devices.length === 0) {
+                listEl.innerHTML = '<p class="text-gray-500">Nenhum dispositivo adicionado.</p>';
+                return;
+            }
+            devices.forEach(device => {
+                const deviceEl = document.createElement('div');
+                deviceEl.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg';
+                deviceEl.innerHTML = `
+                    <span class="font-medium">${device.name} (${device.consumption_kw} kW)</span>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" onchange="toggleDevice('${device.id}')" ${device.state === 'on' ? 'checked' : ''} class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                            <label class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                        <button onclick="deleteDevice('${device.id}')" class="text-red-500 hover:text-red-700"><i class="ph-trash text-xl"></i></button>
+                    </div>`;
+                listEl.appendChild(deviceEl);
+            });
+        }
+
+        function initConsumptionChart() {
+            if (consumptionChart) consumptionChart.destroy();
+            const ctx = document.getElementById('consumption-chart').getContext('2d');
+            consumptionChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Consumo (kW)', data: [], backgroundColor: 'rgba(239, 68, 68, 0.6)' }] },
+                options: { indexAxis: 'y', scales: { x: { beginAtZero: true } }, responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function updateConsumptionChart() {
+            if (!consumptionChart || !currentStatusData.devices) return;
+            const onDevices = Object.values(currentStatusData.devices).filter(d => d.state === 'on');
+            consumptionChart.data.labels = onDevices.map(d => d.name);
+            consumptionChart.data.datasets[0].data = onDevices.map(d => d.consumption_kw);
+            consumptionChart.update();
+        }
+
+        document.getElementById('add-device-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('add-device-btn');
+            const name = document.getElementById('device-name').value;
+            const consumption = document.getElementById('device-consumption').value;
+
+            btn.disabled = true; btn.textContent = 'Adicionando...';
+            try {
+                const response = await fetch(`${API_URL}/api/devices`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name: name, consumption_kw: consumption })
+                });
+                const result = await response.json();
+                showToast(result.message || result.error);
+                if (response.ok) { fetchStatus(); e.target.reset(); }
+            } catch (error) { showToast("Erro ao adicionar dispositivo. API está offline?"); }
+            finally { btn.disabled = false; btn.textContent = 'Adicionar'; }
+        });
+
+        async function toggleDevice(deviceId) {
+            const device = currentStatusData.devices[deviceId];
+            const action = device.state === 'on' ? 'turn_off' : 'turn_on';
+            try {
+                const response = await fetch(`${API_URL}/api/devices/${deviceId}/${action}`, { method: 'POST' });
+                const result = await response.json();
+                showToast(result.message); fetchStatus();
+            } catch(e) { showToast("Erro: A API parece estar offline."); }
+        }
+
+        async function deleteDevice(deviceId) {
+            if (!confirm('Tem certeza?')) return;
+            try {
+                const response = await fetch(`${API_URL}/api/devices/${deviceId}`, { method: 'DELETE' });
+                const result = await response.json();
+                showToast(result.message); fetchStatus();
+            } catch(e) { showToast("Erro: A API parece estar offline."); }
+        }
+
+        async function startCamera() {
+            try {
+                if (!navigator.mediaDevices?.getUserMedia) throw new Error("Câmera não é suportada neste navegador.");
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                document.getElementById('ar-camera-view').srcObject = videoStream;
+            } catch (error) { showToast(error.message); }
+        }
+
+        function stopCamera() {
+            videoStream?.getTracks().forEach(track => track.stop());
+        }
+
+        document.getElementById('ar-camera-view').addEventListener('click', () => {
+            const modal = document.getElementById('ar-selection-modal');
+            const list = document.getElementById('ar-device-list');
+            list.innerHTML = '';
+            const devices = Object.values(currentStatusData.devices || {}).filter(d => d.id !== 'base01');
+            devices.forEach(device => {
+                const button = document.createElement('button');
+                button.className = 'w-full text-left p-2 rounded hover:bg-gray-100';
+                button.textContent = device.name;
+                button.onclick = () => {
+                    const consumption = device.state === 'on' ? `${device.consumption_kw} kW` : "Desligado";
+                    showToast(`${device.name} | Consumo: ${consumption}`);
+                    closeArSelectionModal();
+                };
+                list.appendChild(button);
+            });
+            modal.classList.remove('hidden');
+        });
+
+        function closeArSelectionModal() {
+            document.getElementById('ar-selection-modal').classList.add('hidden');
+        }
+
+        async function fetchRecommendation() {
+            const btn = document.getElementById('fetch-recommendation-btn');
+            const el = document.getElementById('recommendation-text');
+            el.textContent = 'Pensando...';
+            btn.disabled = true;
+            try {
+                 const response = await fetch(`${API_URL}/api/recommendation`);
+                 const data = await response.json();
+                 el.textContent = data.recommendation;
+            } catch(error) {
+                el.textContent = 'Não foi possível obter uma recomendação agora. A API está online?';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`${pageId}-page`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-button, .nav-button-mobile').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'text-blue-500');
+                btn.classList.add('bg-gray-200', 'text-gray-700', 'text-gray-500');
+            });
+            document.querySelectorAll(`button[onclick="showPage('${pageId}')"]`).forEach(b => {
+                b.classList.remove('bg-gray-200', 'text-gray-700', 'text-gray-500');
+                b.classList.add('bg-blue-500', 'text-white');
+            });
+
+            stopCamera();
+            if (pageId === 'ar') startCamera();
+            if (pageId === 'admin') initConsumptionChart();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            showPage('home');
+            fetchStatus();
+            setInterval(fetchStatus, 5000);
+        });
+    </script>
+</body>
+</html>
